@@ -1,0 +1,276 @@
+---
+name: swap-execute-fast
+description: This skill should be used when the user asks to "swap fast", "execute swap immediately", "automated swap", or wants to build AND execute a swap in one step without confirmation prompts. EXTREMELY DANGEROUS - no confirmation, executes immediately.
+metadata:
+  tags:
+    - defi
+    - openocean
+    - swap
+    - transaction
+    - evm
+    - foundry
+    - cast
+    - dangerous
+    - automation
+  provider: OpenOcean
+  homepage: https://openocean.finance
+  warning: "⚠️ EXTREMELY DANGEROUS: Builds and executes immediately without any confirmation. Only use when you fully trust the parameters and understand the risks."
+---
+
+# OpenOcean Swap Execute Fast Skill
+
+Build and execute a swap in one step with no confirmation prompts. This skill is intended for automation use cases where the user wants immediate execution without manual approval.
+
+## ⚠️ EXTREME DANGER WARNING
+
+**This skill is extremely dangerous because:**
+1. **No confirmation prompts** — executes immediately
+2. **No review of parameters** — assumes everything is correct
+3. **Irreversible** — on-chain transactions cannot be undone
+4. **Gas costs incurred even if swap fails**
+
+**Only use when:**
+- You are automating a trusted workflow
+- You have thoroughly tested with small amounts
+- You understand and accept all risks
+- You have proper error handling in place
+
+## Prerequisites
+
+**Required Tools:**
+- [Foundry](https://getfoundry.sh/) installed (`cast` command)
+- `curl` and `jq` for API calls
+- RPC endpoint configured
+- Wallet access (environment variable, Ledger, Trezor, or keystore)
+
+## Input Parsing
+
+The user will provide input like:
+- `1 ETH to USDC on base from 0xYourAddress`
+- `100 USDC to ETH on arbitrum from 0xYourAddress keystore mykey`
+- `0.5 WBTC to DAI on polygon from 0xYourAddress ledger`
+
+Extract these fields:
+- **amount** — amount to swap
+- **tokenIn** — input token symbol
+- **tokenOut** — output token symbol
+- **chain** — chain slug or ID
+- **sender** — sender wallet address
+- **walletMethod** — optional: `ledger`, `trezor`, `keystore {name}`
+- **slippage** — optional slippage in basis points (default: 100 = 1%)
+
+## Workflow
+
+### Step 1: Resolve Token Addresses
+
+Read `references/token-registry.md` from the project root.
+
+Look up `tokenIn` and `tokenOut` for the chain. Use native token address for native tokens.
+
+If token not found, use OpenOcean Token API fallback.
+
+### Step 2: Get Gas Price
+
+```
+GET https://open-api.openocean.finance/v4/:chain/gasPrice
+```
+
+Use `standard` gas price.
+
+### Step 3: Convert Amount to Wei
+
+```
+amountInWei = amount * 10^(tokenIn decimals)
+```
+
+Use a deterministic conversion method.
+
+### Step 4: Call Swap API
+
+```
+GET https://open-api.openocean.finance/v4/:chain/swap?inTokenAddress={tokenInAddress}&outTokenAddress={tokenOutAddress}&amountDecimals={amountInWei}&gasPriceDecimals={gasPriceWei}&slippage={slippage_api}&account={sender}
+```
+
+Convert slippage from basis points to percentage before calling the API:
+
+```
+slippage_api = slippage_bps / 100
+```
+
+For example, `slippage 100` means `1`, and `slippage 50` means `0.5`.
+
+### Step 5: Execute Immediately with Cast
+
+**No confirmation — executes immediately!**
+
+**Method 1: Environment Variables (Default)**
+```bash
+cast send --rpc-url $ETH_RPC_URL \
+  --from $ETH_FROM \
+  --value {value} \
+  --gas {gas} \
+  --gas-price {gasPrice} \
+  --chain {chainId} \
+  {to} {data}
+```
+
+**Method 2: Ledger**
+```bash
+cast send --rpc-url $ETH_RPC_URL \
+  --ledger \
+  --value {value} \
+  --gas {gas} \
+  --gas-price {gasPrice} \
+  --chain {chainId} \
+  {to} {data}
+```
+
+**Method 3: Trezor**
+```bash
+cast send --rpc-url $ETH_RPC_URL \
+  --trezor \
+  --value {value} \
+  --gas {gas} \
+  --gas-price {gasPrice} \
+  --chain {chainId} \
+  {to} {data}
+```
+
+**Method 4: Keystore**
+```bash
+cast send --rpc-url $ETH_RPC_URL \
+  --keystore /path/to/keystore \
+  --value {value} \
+  --gas {gas} \
+  --gas-price {gasPrice} \
+  --chain {chainId} \
+  {to} {data}
+```
+
+### Step 6: Return Result
+
+**If successful:**
+```
+## ✅ Swap Executed Successfully (Fast Path)
+
+**Transaction Hash**: `{txHash}`
+**Block Explorer**: {explorerUrl}
+
+### Details
+- **Input**: {amount} {tokenIn}
+- **Minimum Output**: {minOutAmount} {tokenOut}
+- **Gas Used**: {gasUsed} units
+- **Total Cost**: {totalCost} ETH
+
+**⚠️ No confirmation was shown — transaction was executed immediately.**
+```
+
+**If failed:**
+```
+## ❌ Swap Execution Failed (Fast Path)
+
+**Error**: {errorMessage}
+
+### Transaction Details
+- **Attempted**: {amount} {tokenIn} → {tokenOut}
+- **From**: `{sender}`
+- **Chain**: {chain}
+
+**⚠️ No confirmation was shown — execution was attempted immediately.**
+```
+
+## Script Implementation
+
+For reliable automation, this skill uses shell scripts:
+
+### `fast-swap.sh` — Token resolution + route building
+```bash
+#!/bin/bash
+# fast-swap.sh
+# Builds swap transaction without confirmation
+# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippage>
+
+# ... implementation details ...
+```
+
+### `execute-swap.sh` — Calls fast-swap.sh then broadcasts
+```bash
+#!/bin/bash
+# execute-swap.sh
+# Builds and executes a swap in one step
+# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippage> [walletMethod]
+
+# ... implementation details ...
+```
+
+**Script location:** `skills/swap-execute-fast/scripts/` (project root)
+
+## Safety Considerations
+
+### When to Use
+- Automated trading bots
+- Scheduled swaps (DCA)
+- Integration with other automation tools
+- High-frequency, low-value trades
+
+### When Not to Use
+- Large value swaps (>$1,000)
+- First time using a token pair
+- Unfamiliar chains or tokens
+- When market conditions are volatile
+
+### Risk Mitigation
+1. **Test with small amounts** first
+2. **Set conservative slippage** (higher than normal)
+3. **Monitor gas prices** to avoid overpaying
+4. **Implement circuit breakers** in automation
+5. **Regularly review and audit** automation logic
+
+## Error Handling
+
+The fast path has limited error recovery:
+
+1. **API failures** — retry with exponential backoff
+2. **Insufficient balance** — abort immediately
+3. **No route found** — try alternative token or chain
+4. **Wallet errors** — check connection and configuration
+
+For critical failures, the script should abort rather than retry indefinitely.
+
+## Example Usage
+
+### Basic (environment variables)
+```
+/swap-execute-fast 1 ETH to USDC on base from 0x742d35Cc6634C0532925a3b844Bc9e90F1b6fB28
+```
+
+### With Ledger
+```
+/swap-execute-fast 100 USDC to ETH on arbitrum from 0x742d35Cc6634C0532925a3b844Bc9e90F1b6fB28 ledger
+```
+
+### With Keystore
+```
+/swap-execute-fast 0.5 WBTC to DAI on polygon from 0x742d35Cc6634C0532925a3b844Bc9e90F1b6fB28 keystore mykey
+```
+
+## Testing
+
+**Always test before using in production:**
+
+1. **Unit tests** — `bash tests/test-fast-swap.sh unit`
+2. **Live tests with tiny amounts** — `bash tests/test-fast-swap.sh live`
+3. **Integration tests** — verify end-to-end workflow
+
+Test files in `test/`:
+- `test-fast-swap.sh` — automated test suite
+- `agent-test-cases.md` — manual test prompts
+
+## Alternatives
+
+For safer workflows, use:
+- **`/quote`** — Check prices only
+- **`/swap-build`** — Build with confirmation
+- **`/swap-execute`** — Execute with confirmation
+
+The fast path should only be used when the benefits of automation outweigh the risks of immediate, unconfirmed execution.
