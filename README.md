@@ -8,7 +8,7 @@ Skills for interacting with the [OpenOcean Aggregator API](https://apis.openocea
 - **Quote / Build**: `quote` and `swap-build` only require the ability to send GET requests, such as `mcp_web_fetch` or `curl`; no local installation is needed.
 - **Execute**: `swap-execute` and `swap-execute-fast` require [Foundry](https://getfoundry.sh/) (`cast`) plus RPC and wallet configuration.
 
-If something goes wrong, check: 1) Correct workspace with `references/`; 2) API requests use integer-string `amountDecimals` (no decimal point); 3) Slippage is in percent (1 = 1%, not 100); 4) Foundry installed and `ETH_RPC_URL` etc. set for on-chain execution.
+If something goes wrong, check: 1) Correct workspace with `references/`; 2) API requests use integer-string `amountDecimals` (no decimal point); 3) User-facing `slippage 100` means 100 bps = 1%, while the API parameter uses percent (`1` = 1%); 4) Foundry is installed and `ETH_RPC_URL` plus any required wallet settings are configured for on-chain execution.
 
 ## Project Structure
 
@@ -17,24 +17,24 @@ Skills live under `skills/`, while shared API docs and token data live under `re
 ```
 openocean-skills/
 ├── skills/
-│   ├── quote/              # Get swap quote
+│   ├── quote/              # Get a swap quote
 │   │   └── SKILL.md
 │   ├── swap-build/         # Build swap calldata (with confirmation)
 │   │   └── SKILL.md
-│   ├── swap-execute/       # Execute swap via Foundry cast (with confirmation)
+│   ├── swap-execute/       # Execute a swap via Foundry cast (with confirmation)
 │   │   └── SKILL.md
 │   ├── swap-execute-fast/  # Build and execute in one step (no confirmation)
-│       ├── SKILL.md
-│       └── scripts/
-│           ├── fast-swap.sh      # Token resolution + route build
-│           └── execute-swap.sh   # Calls fast-swap.sh then broadcast
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       ├── fast-swap.sh      # Token resolution and route building
+│   │       └── execute-swap.sh   # Calls fast-swap.sh and then broadcasts
 │   └── error-handling/     # Troubleshooting and error codes
 │       └── SKILL.md
 ├── references/             # Shared docs
 │   ├── api-reference.md
 │   └── token-registry.md
 ├── test/                   # Prompt test cases
-│   └── agent-test-cases.md      # English test prompts
+│   └── agent-test-cases.md # English test prompts
 └── README.md
 ```
 

@@ -118,7 +118,7 @@ Before returning calldata, show the user:
 - **Chain ID**: {chainId}
 - **From**: `{from}`
 
-⚠️ **Important**: 
+⚠️ **Important:**
 1. This builds the transaction but does NOT execute it
 2. Minimum output is protected by contract
 3. Gas costs are estimates only
@@ -183,7 +183,7 @@ No transaction data was generated. You can:
 4. **Token Approvals**: ERC-20 tokens require approval before swapping
 
 ### Parameter Guidelines
-- **Slippage**: 
+- **Slippage:**
   - 0.1% (10 bps) for stablecoin ↔ stablecoin
   - 0.5% (50 bps) for common pairs
   - 1-2% (100-200 bps) for volatile tokens

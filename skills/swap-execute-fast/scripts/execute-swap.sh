@@ -1,7 +1,7 @@
 #!/bin/bash
 # execute-swap.sh
-# Builds AND executes swap in one step
-# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippage> [walletMethod]
+# Builds and executes a swap in one step
+# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps> [walletMethod]
 
 set -e  # Exit on error
 
@@ -15,7 +15,7 @@ KEYSTORE_NAME=${8:-""}
 
 # Validate arguments
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 <chain> <tokenIn> <tokenOut> <amount> <sender> [slippage] [walletMethod] [keystoreName]"
+    echo "Usage: $0 <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName]"
     echo ""
     echo "Examples:"
     echo "  $0 ethereum ETH USDC 1 0x742d35Cc6634C0532925a3b844Bc9e90F1b6fB28 100"
@@ -39,7 +39,7 @@ SLIPPAGE=${6:-100}
 
 echo "⚡ OpenOcean Fast Swap Execution"
 echo "========================================"
-echo "⚠️  WARNING: This will execute immediately without confirmation!"
+echo "⚠️ WARNING: This will execute immediately without confirmation!"
 echo "========================================"
 echo ""
 echo "Parameters:"
@@ -69,8 +69,8 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-if [ -z "$ETH_RPC_URL" ] && [ "$WALLET_METHOD" = "env" ]; then
-    echo "⚠️  ETH_RPC_URL environment variable not set"
+if [ -z "$ETH_RPC_URL" ]; then
+    echo "⚠️ ETH_RPC_URL environment variable not set"
     echo "   export ETH_RPC_URL=https://rpc.example.com"
     exit 1
 fi
@@ -112,7 +112,7 @@ echo "🚀 Executing transaction..."
 case "$WALLET_METHOD" in
     env)
         if [ -z "$ETH_FROM" ]; then
-            echo "⚠️  ETH_FROM environment variable not set"
+            echo "⚠️ ETH_FROM environment variable not set"
             echo "   export ETH_FROM=0xYourAddress"
             exit 1
         fi
@@ -250,6 +250,6 @@ fi
 
 echo ""
 echo "========================================"
-echo "⚠️  REMINDER: This executed without confirmation!"
+echo "⚠️ REMINDER: This executed without confirmation!"
 echo "   Always verify transaction on block explorer."
 echo "========================================"

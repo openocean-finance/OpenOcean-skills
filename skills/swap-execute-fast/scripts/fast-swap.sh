@@ -1,7 +1,7 @@
 #!/bin/bash
 # fast-swap.sh
 # Builds swap transaction without confirmation
-# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippage>
+# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps>
 # Slippage in basis points (100 = 1%). API expects percentage; script converts automatically.
 # All progress output goes to stderr; only JSON is printed to stdout for piping.
 
@@ -19,7 +19,7 @@ if [ -z "$SLIPPAGE_API" ]; then SLIPPAGE_API=1; fi
 
 # Validate arguments
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 <chain> <tokenIn> <tokenOut> <amount> <sender> [slippage]" >&2
+    echo "Usage: $0 <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps]" >&2
     echo "Example: $0 ethereum ETH USDC 1 0x742d35Cc6634C0532925a3b844Bc9e90F1b6fB28 100" >&2
     exit 1
 fi
@@ -106,7 +106,7 @@ query_token_api() {
         exit 1
     fi
     
-    TOKEN_DATA=$(echo "$TOKEN_LIST_RESPONSE" | jq -r ".data[] | select(.symbol == \"$symbol\") | [.address, .decimals] | @tsv" | head -1)
+    TOKEN_DATA=$(echo "$TOKEN_LIST_RESPONSE" | jq -r --arg symbol "$symbol_lower" '.data[] | select((.symbol | ascii_downcase) == $symbol) | [.address, .decimals] | @tsv' | head -1)
     
     if [ -z "$TOKEN_DATA" ]; then
         echo "❌ Token $symbol not found on $chain" >&2

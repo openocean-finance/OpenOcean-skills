@@ -1,6 +1,6 @@
 ---
 name: swap-execute-fast
-description: This skill should be used when the user asks to "swap fast", "execute swap immediately", "automated swap", or wants to build AND execute a swap in one step without confirmation prompts. EXTREMELY DANGEROUS - no confirmation, executes immediately.
+description: This skill should be used when the user asks to "swap fast", "execute swap immediately", "automated swap", or wants to build and execute a swap in one step without confirmation prompts. EXTREMELY DANGEROUS: no confirmation, executes immediately.
 metadata:
   tags:
     - defi
@@ -85,7 +85,7 @@ amountInWei = amount * 10^(tokenIn decimals)
 
 Use a deterministic conversion method.
 
-### Step 4: Call Swap API
+### Step 4: Call the Swap API
 
 ```
 GET https://open-api.openocean.finance/v4/:chain/swap?inTokenAddress={tokenInAddress}&outTokenAddress={tokenOutAddress}&amountDecimals={amountInWei}&gasPriceDecimals={gasPriceWei}&slippage={slippage_api}&account={sender}
@@ -99,7 +99,7 @@ slippage_api = slippage_bps / 100
 
 For example, `slippage 100` means `1`, and `slippage 50` means `0.5`.
 
-### Step 5: Execute Immediately with Cast
+### Step 5: Execute Immediately with `cast`
 
 **No confirmation — executes immediately!**
 
@@ -183,22 +183,22 @@ cast send --rpc-url $ETH_RPC_URL \
 
 For reliable automation, this skill uses shell scripts:
 
-### `fast-swap.sh` — Token resolution + route building
+### `fast-swap.sh` - Token resolution and route building
 ```bash
 #!/bin/bash
 # fast-swap.sh
 # Builds swap transaction without confirmation
-# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippage>
+# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps>
 
 # ... implementation details ...
 ```
 
-### `execute-swap.sh` — Calls fast-swap.sh then broadcasts
+### `execute-swap.sh` - Calls `fast-swap.sh` and then broadcasts
 ```bash
 #!/bin/bash
 # execute-swap.sh
 # Builds and executes a swap in one step
-# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippage> [walletMethod]
+# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps> [walletMethod]
 
 # ... implementation details ...
 ```
@@ -258,12 +258,11 @@ For critical failures, the script should abort rather than retry indefinitely.
 
 **Always test before using in production:**
 
-1. **Unit tests** — `bash tests/test-fast-swap.sh unit`
-2. **Live tests with tiny amounts** — `bash tests/test-fast-swap.sh live`
-3. **Integration tests** — verify end-to-end workflow
+1. **Manual prompt tests** — use `test/agent-test-cases.md`
+2. **Live tests with tiny amounts** — verify the full workflow on-chain with minimal value
+3. **Integration tests** — verify the end-to-end workflow after setting up Foundry, RPC, and wallet access
 
 Test files in `test/`:
-- `test-fast-swap.sh` — automated test suite
 - `agent-test-cases.md` — manual test prompts
 
 ## Alternatives
