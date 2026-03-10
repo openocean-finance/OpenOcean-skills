@@ -37,14 +37,14 @@ AMOUNT="$4"
 SENDER="$5"
 SLIPPAGE=${6:-100}
 
-echo "⚡ OpenOcean Fast Swap Execution"
+echo "OpenOcean Fast Swap Execution"
 echo "========================================"
-echo "⚠️ WARNING: This will execute immediately without confirmation!"
+echo "WARNING: This will execute immediately without confirmation!"
 echo "========================================"
 echo ""
 echo "Parameters:"
 echo "  Chain:     $CHAIN"
-echo "  Swap:      $AMOUNT $TOKEN_IN → $TOKEN_OUT"
+echo "  Swap:      $AMOUNT $TOKEN_IN -> $TOKEN_OUT"
 echo "  Sender:    $SENDER"
 echo "  Slippage:  $SLIPPAGE bps"
 echo "  Wallet:    $WALLET_METHOD"
@@ -54,36 +54,42 @@ fi
 echo ""
 
 # Check prerequisites
-echo "🔧 Checking prerequisites..."
+echo "Checking prerequisites..."
 if ! command -v cast &> /dev/null; then
-    echo "❌ Foundry 'cast' command not found. Please install Foundry:"
+    echo "Foundry 'cast' command not found. Please install Foundry:"
     echo "   curl -L https://foundry.paradigm.xyz | bash"
     echo "   foundryup"
     exit 1
 fi
 
 if ! command -v jq &> /dev/null; then
-    echo "❌ 'jq' command not found. Please install jq:"
+    echo "'jq' command not found. Please install jq:"
     echo "   sudo apt-get install jq   # Ubuntu/Debian"
     echo "   brew install jq           # macOS"
     exit 1
 fi
 
 if [ -z "$ETH_RPC_URL" ]; then
-    echo "⚠️ ETH_RPC_URL environment variable not set"
+    echo "ETH_RPC_URL environment variable not set"
     echo "   export ETH_RPC_URL=https://rpc.example.com"
     exit 1
 fi
 
-echo "✅ Prerequisites satisfied"
+echo "Prerequisites satisfied"
 
 # Step 1: Build swap transaction
 echo ""
-echo "🔄 Building swap transaction..."
+echo "Building swap transaction..."
 TX_JSON=$("$FAST_SWAP_SCRIPT" "$CHAIN" "$TOKEN_IN" "$TOKEN_OUT" "$AMOUNT" "$SENDER" "$SLIPPAGE")
 
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to build swap transaction"
+if [ $? -ne 0 ] || [ -z "$TX_JSON" ]; then
+    echo "Failed to build swap transaction."
+    exit 1
+fi
+
+# Validate JSON before parsing
+if ! echo "$TX_JSON" | jq -e . >/dev/null 2>&1; then
+    echo "Invalid JSON from build step. Check network and API."
     exit 1
 fi
 
@@ -96,7 +102,7 @@ GAS=$(echo "$TX_JSON" | jq -r '.gas')
 GAS_PRICE=$(echo "$TX_JSON" | jq -r '.gasPrice')
 CHAIN_ID=$(echo "$TX_JSON" | jq -r '.chainId')
 
-echo "✅ Transaction built:"
+echo "Transaction built:"
 echo "   From:    $FROM"
 echo "   To:      $TO"
 echo "   Value:   $VALUE wei"
@@ -106,13 +112,13 @@ echo "   Chain ID: $CHAIN_ID"
 
 # Step 2: Execute transaction
 echo ""
-echo "🚀 Executing transaction..."
+echo "Executing transaction..."
 
 # Build cast command based on wallet method
 case "$WALLET_METHOD" in
     env)
         if [ -z "$ETH_FROM" ]; then
-            echo "⚠️ ETH_FROM environment variable not set"
+            echo "ETH_FROM environment variable not set"
             echo "   export ETH_FROM=0xYourAddress"
             exit 1
         fi
@@ -148,7 +154,7 @@ case "$WALLET_METHOD" in
     
     keystore)
         if [ -z "$KEYSTORE_NAME" ]; then
-            echo "❌ Keystore name required for keystore method"
+            echo "Keystore name required for keystore method"
             echo "   Usage: $0 ... keystore <name>"
             exit 1
         fi
@@ -161,7 +167,7 @@ case "$WALLET_METHOD" in
         fi
         
         if [ ! -f "$KEYSTORE_FILE" ]; then
-            echo "❌ Keystore file not found: $KEYSTORE_NAME"
+            echo "Keystore file not found: $KEYSTORE_NAME"
             echo "   Expected locations:"
             echo "     ~/.foundry/keystores/$KEYSTORE_NAME"
             echo "     ~/.ethereum/keystore/$KEYSTORE_NAME"
@@ -178,7 +184,7 @@ case "$WALLET_METHOD" in
         ;;
     
     *)
-        echo "❌ Unknown wallet method: $WALLET_METHOD"
+        echo "Unknown wallet method: $WALLET_METHOD"
         echo "   Supported: env, ledger, trezor, keystore"
         exit 1
         ;;
@@ -188,7 +194,7 @@ echo "   Command: ${CAST_CMD:0:80}..."
 echo ""
 
 # Execute the command
-echo "⏳ Broadcasting transaction..."
+echo "Broadcasting transaction..."
 TX_RESULT=$(eval "$CAST_CMD" 2>&1)
 CAST_EXIT_CODE=$?
 
@@ -198,7 +204,7 @@ if [ $CAST_EXIT_CODE -eq 0 ]; then
     
     if [ -n "$TX_HASH" ]; then
         echo ""
-        echo "✅ Transaction broadcast successfully!"
+        echo "Transaction broadcast successfully."
         echo "   Transaction Hash: $TX_HASH"
         
         # Generate block explorer URL based on chain
@@ -228,19 +234,19 @@ if [ $CAST_EXIT_CODE -eq 0 ]; then
         
         echo "   Explorer: $EXPLORER_URL"
         echo ""
-        echo "📊 Transaction Details:"
+        echo "Transaction Details:"
         echo "$TX_RESULT"
     else
-        echo "✅ Transaction broadcast successfully!"
+        echo "Transaction broadcast successfully."
         echo "$TX_RESULT"
     fi
 else
-    echo "❌ Transaction failed!"
+    echo "Transaction failed."
     echo ""
     echo "Error output:"
     echo "$TX_RESULT"
     echo ""
-    echo "💡 Troubleshooting:"
+    echo "Troubleshooting:"
     echo "1. Check wallet balance and allowances"
     echo "2. Verify RPC endpoint is working"
     echo "3. Ensure wallet is properly connected/unlocked"
@@ -250,6 +256,6 @@ fi
 
 echo ""
 echo "========================================"
-echo "⚠️ REMINDER: This executed without confirmation!"
+echo "REMINDER: This executed without confirmation!"
 echo "   Always verify transaction on block explorer."
 echo "========================================"

@@ -30,7 +30,7 @@ TOKEN_OUT="$3"
 AMOUNT="$4"
 SENDER="$5"
 
-echo "🔍 Building swap: $AMOUNT $TOKEN_IN → $TOKEN_OUT on $CHAIN" >&2
+echo "[*] Building swap: $AMOUNT $TOKEN_IN -> $TOKEN_OUT on $CHAIN" >&2
 echo "   Sender: $SENDER" >&2
 echo "   Slippage: $SLIPPAGE_BPS bps (= ${SLIPPAGE_API}% for API)" >&2
 
@@ -96,20 +96,22 @@ resolve_token_address() {
 query_token_api() {
     local symbol="$1"
     local chain="$2"
-    
+    local symbol_lower
+    symbol_lower=$(echo "$symbol" | tr '[:upper:]' '[:lower:]')
+
     echo "   Querying OpenOcean token API for $symbol on $chain..." >&2
     
     TOKEN_LIST_RESPONSE=$(curl -s "$API_BASE/$chain/tokenList")
     
     if [ $? -ne 0 ]; then
-        echo "❌ Failed to query token API" >&2
+        echo "Failed to query token API" >&2
         exit 1
     fi
-    
+
     TOKEN_DATA=$(echo "$TOKEN_LIST_RESPONSE" | jq -r --arg symbol "$symbol_lower" '.data[] | select((.symbol | ascii_downcase) == $symbol) | [.address, .decimals] | @tsv' | head -1)
-    
+
     if [ -z "$TOKEN_DATA" ]; then
-        echo "❌ Token $symbol not found on $chain" >&2
+        echo "Token $symbol not found on $chain" >&2
         exit 1
     fi
     
@@ -130,26 +132,26 @@ TOKEN_OUT_DATA=$(resolve_token_address "$TOKEN_OUT" "$CHAIN")
 TOKEN_OUT_ADDR=$(echo "$TOKEN_OUT_DATA" | head -1)
 TOKEN_OUT_DECIMALS=$(echo "$TOKEN_OUT_DATA" | tail -1)
 
-echo "✅ Token addresses resolved:" >&2
+echo "Token addresses resolved:" >&2
 echo "   $TOKEN_IN: $TOKEN_IN_ADDR (decimals: $TOKEN_IN_DECIMALS)" >&2
 echo "   $TOKEN_OUT: $TOKEN_OUT_ADDR (decimals: $TOKEN_OUT_DECIMALS)" >&2
 
-echo "   Fetching gas price..." >&2
+echo "Fetching gas price..." >&2
 GAS_PRICE_RESPONSE=$(curl -s "$API_BASE/$CHAIN/gasPrice")
 if [ $? -ne 0 ]; then
-    echo "❌ Failed to fetch gas price" >&2
+    echo "Failed to fetch gas price" >&2
     exit 1
 fi
 
 GAS_PRICE=$(echo "$GAS_PRICE_RESPONSE" | jq -r '.data.standard.legacyGasPrice // .data.base')
 if [ "$GAS_PRICE" = "null" ] || [ -z "$GAS_PRICE" ]; then
-    echo "❌ Could not extract gas price from response" >&2
+    echo "Could not extract gas price from response" >&2
     exit 1
 fi
 
-echo "✅ Gas price: $GAS_PRICE wei" >&2
+echo "Gas price: $GAS_PRICE wei" >&2
 
-echo "   Converting amount to wei..." >&2
+echo "Converting amount to wei..." >&2
 AMOUNT_IN_WEI=$(python3 -c "
 amount = $AMOUNT
 decimals = $TOKEN_IN_DECIMALS
@@ -157,21 +159,21 @@ result = int(amount * (10 ** decimals))
 print(result)
 ")
 
-echo "✅ Amount in wei: $AMOUNT_IN_WEI" >&2
+echo "Amount in wei: $AMOUNT_IN_WEI" >&2
 
-echo "   Getting swap quote with calldata..." >&2
+echo "Getting swap quote with calldata..." >&2
 SWAP_URL="$API_BASE/$CHAIN/swap?inTokenAddress=$TOKEN_IN_ADDR&outTokenAddress=$TOKEN_OUT_ADDR&amountDecimals=$AMOUNT_IN_WEI&gasPriceDecimals=$GAS_PRICE&slippage=$SLIPPAGE_API&account=$SENDER"
 
 SWAP_RESPONSE=$(curl -s "$SWAP_URL")
 if [ $? -ne 0 ]; then
-    echo "❌ Failed to call swap API" >&2
+    echo "Failed to call swap API" >&2
     exit 1
 fi
 
 RESPONSE_CODE=$(echo "$SWAP_RESPONSE" | jq -r '.code')
 if [ "$RESPONSE_CODE" != "200" ]; then
     ERROR_MSG=$(echo "$SWAP_RESPONSE" | jq -r '.message // "Unknown error"')
-    echo "❌ API error $RESPONSE_CODE: $ERROR_MSG" >&2
+    echo "API error $RESPONSE_CODE: $ERROR_MSG" >&2
     exit 1
 fi
 
@@ -183,11 +185,11 @@ GAS=$(echo "$SWAP_RESPONSE" | jq -r '.data.estimatedGas')
 CHAIN_ID=$(echo "$SWAP_RESPONSE" | jq -r '.data.chainId')
 
 if [ -z "$DATA" ] || [ "$DATA" = "null" ]; then
-    echo "❌ No calldata in response" >&2
+    echo "No calldata in response" >&2
     exit 1
 fi
 
-echo "✅ Swap transaction built successfully" >&2
+echo "Swap transaction built successfully" >&2
 echo "   From: $FROM | To: $TO | Value: $VALUE wei | Gas: $GAS | Chain: $CHAIN_ID" >&2
 
 # Only JSON to stdout for execute-swap.sh

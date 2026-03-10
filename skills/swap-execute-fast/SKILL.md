@@ -183,27 +183,26 @@ cast send --rpc-url $ETH_RPC_URL \
 
 For reliable automation, this skill uses shell scripts:
 
-### `fast-swap.sh` - Token resolution and route building
-```bash
-#!/bin/bash
-# fast-swap.sh
-# Builds swap transaction without confirmation
-# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps>
+### `fast-swap.sh` — token resolution and route building
 
-# ... implementation details ...
+Location: `skills/swap-execute-fast/scripts/fast-swap.sh`. Run from workspace root.
+
+```bash
+# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps]
+# Slippage in basis points (100 = 1%). API expects percentage; script converts automatically.
+# All progress goes to stderr; only JSON is printed to stdout for piping.
 ```
 
-### `execute-swap.sh` - Calls `fast-swap.sh` and then broadcasts
-```bash
-#!/bin/bash
-# execute-swap.sh
-# Builds and executes a swap in one step
-# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps> [walletMethod]
+### `execute-swap.sh` — build then broadcast
 
-# ... implementation details ...
+Location: `skills/swap-execute-fast/scripts/execute-swap.sh`. Calls `fast-swap.sh` then broadcasts via `cast send`.
+
+```bash
+# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName]
+# Wallet methods: env (default), ledger, trezor, keystore
 ```
 
-**Script location:** `skills/swap-execute-fast/scripts/` (project root)
+**Script location:** `skills/swap-execute-fast/scripts/` (relative to workspace root). Invoke from project root so `references/token-registry.md` and API base URL are consistent.
 
 ## Safety Considerations
 
