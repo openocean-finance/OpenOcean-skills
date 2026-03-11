@@ -101,13 +101,18 @@ DATA=$(echo "$TX_JSON" | jq -r '.data')
 GAS=$(echo "$TX_JSON" | jq -r '.gas')
 GAS_PRICE=$(echo "$TX_JSON" | jq -r '.gasPrice')
 CHAIN_ID=$(echo "$TX_JSON" | jq -r '.chainId')
+GAS_PRICE_GWEI=$(echo "$TX_JSON" | jq -r '.gasPriceGwei // empty')
+GAS_FEE_ETH=$(echo "$TX_JSON" | jq -r '.gasFeeEth // empty')
 
 echo "Transaction built:"
 echo "   From:    $FROM"
 echo "   To:      $TO"
 echo "   Value:   $VALUE wei"
 echo "   Gas:     $GAS"
-echo "   Gas Price: $GAS_PRICE wei"
+echo "   Gas Price: $GAS_PRICE wei${GAS_PRICE_GWEI:+ ($GAS_PRICE_GWEI Gwei)}"
+if [ -n "$GAS_FEE_ETH" ] && [ "$GAS_FEE_ETH" != "null" ]; then
+    echo "   Est. gas fee: $GAS_FEE_ETH ETH"
+fi
 echo "   Chain ID: $CHAIN_ID"
 
 # Step 2: Execute transaction

@@ -63,7 +63,7 @@ Fetch current gas price:
 GET https://open-api.openocean.finance/v4/:chain/gasPrice
 ```
 
-Use the `standard` gas price from the response. Convert to wei if needed.
+Use the `standard` gas price from the response. **Values in `data` are already in wei** (use `data.standard.legacyGasPrice` or `data.standard` on non-Ethereum chains); pass them directly as `gasPriceDecimals` to swap.
 
 ### Step 3: Convert Amount to Wei
 
@@ -108,7 +108,7 @@ Before returning calldata, show the user:
 | Expected Output | {outAmount} {tokenOut} (~${amountOutUsd}) |
 | Minimum Output | {minOutAmount} {tokenOut} (after {slippage}% slippage) |
 | Gas estimate | {estimatedGas} units |
-| Gas price | {gasPrice} wei |
+| Gas price | {gasPrice} wei (display in Gwei as gasPrice ÷ 10^9) |
 | Price impact | {price_impact} |
 | Router | `{to}` |
 
@@ -187,7 +187,7 @@ No transaction data was generated. You can:
   - 0.1% (10 bps) for stablecoin ↔ stablecoin
   - 0.5% (50 bps) for common pairs
   - 1-2% (100-200 bps) for volatile tokens
-- **Gas Price**: Use current market rates from gasPrice endpoint
+- **Gas Price**: Use current market rates from gasPrice endpoint. For the built transaction, use **data.gasPrice from the swap response** (wei) so the tx matches the quote. When displaying, gas price in Gwei = gasPrice ÷ 10^9 (never use the wei value as Gwei).
 - **Deadline**: OpenOcean uses default 20-minute deadline
 
 ### Native vs ERC-20

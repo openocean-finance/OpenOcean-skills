@@ -1,10 +1,6 @@
 # OpenOcean Skills
 
-OpenOcean Skills provide a simple interface for interacting with the [OpenOcean Aggregator API](https://apis.openocean.finance/). They enable AI agents and coding assistants to fetch swap quotes, generate transaction calldata, and prepare on-chain swaps across 40+ blockchains.
-
-The skills support both EVM and non-EVM networks, including ecosystems such as Solana, Sui, Ethereum, Arbitrum, and Base, allowing developers to integrate multi-chain liquidity through a single command interface.
-
-Designed for AI-driven development environments, OpenOcean Skills can be used with tools like Cursor, Claude Code, OpenClaw or any custom AI agent framework that supports skill- or plugin-style instructions.
+Skills for interacting with the [OpenOcean Aggregator API](https://apis.openocean.finance/). Use them to fetch swap quotes and build transaction calldata across 40+ chains, including both EVM and non-EVM networks such as Solana and Sui. They can be used by any AI coding assistant or agent that supports skill- or plugin-style instructions, such as Cursor, Claude Code, or custom runners.
 
 ## Prerequisites & Availability
 

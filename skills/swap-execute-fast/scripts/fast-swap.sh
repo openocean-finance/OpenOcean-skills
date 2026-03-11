@@ -143,7 +143,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-GAS_PRICE=$(echo "$GAS_PRICE_RESPONSE" | jq -r '.data.standard.legacyGasPrice // .data.base')
+# Per OpenOcean API v4: Ethereum returns data.standard.legacyGasPrice / data.base (wei);
+# other EVM chains may return data.standard as a number (wei). All values in wei.
+GAS_PRICE=$(echo "$GAS_PRICE_RESPONSE" | jq -r '.data.standard.legacyGasPrice // .data.standard // .data.base')
 if [ "$GAS_PRICE" = "null" ] || [ -z "$GAS_PRICE" ]; then
     echo "Could not extract gas price from response" >&2
     exit 1
@@ -183,16 +185,32 @@ VALUE=$(echo "$SWAP_RESPONSE" | jq -r '.data.value')
 DATA=$(echo "$SWAP_RESPONSE" | jq -r '.data.data')
 GAS=$(echo "$SWAP_RESPONSE" | jq -r '.data.estimatedGas')
 CHAIN_ID=$(echo "$SWAP_RESPONSE" | jq -r '.data.chainId')
+# Use gas price from swap response so the transaction matches the quote (OpenOcean API v4).
+SWAP_GAS_PRICE=$(echo "$SWAP_RESPONSE" | jq -r '.data.gasPrice')
+if [ -z "$SWAP_GAS_PRICE" ] || [ "$SWAP_GAS_PRICE" = "null" ]; then
+    SWAP_GAS_PRICE="$GAS_PRICE"
+fi
 
 if [ -z "$DATA" ] || [ "$DATA" = "null" ]; then
     echo "No calldata in response" >&2
     exit 1
 fi
 
+# Gas fee in wei = gas limit * gas price (both from swap response). All units per API v4: wei.
+GAS_FEE_WEI=$(python3 -c "
+gas = int($GAS)
+price = int('$SWAP_GAS_PRICE')
+print(gas * price)
+" 2>/dev/null || echo "0")
+GAS_FEE_ETH=$(python3 -c "print(int('$GAS_FEE_WEI') / 1e18)" 2>/dev/null || echo "0")
+GAS_PRICE_GWEI=$(python3 -c "print(int('$SWAP_GAS_PRICE') / 1e9)" 2>/dev/null || echo "0")
+
 echo "Swap transaction built successfully" >&2
-echo "   From: $FROM | To: $TO | Value: $VALUE wei | Gas: $GAS | Chain: $CHAIN_ID" >&2
+echo "   From: $FROM | To: $TO | Value: $VALUE wei | Gas: $GAS | Gas price: $SWAP_GAS_PRICE wei ($GAS_PRICE_GWEI Gwei) | Chain: $CHAIN_ID" >&2
+echo "   Est. gas fee: $GAS_FEE_ETH ETH ($GAS_FEE_WEI wei)" >&2
 
 # Only JSON to stdout for execute-swap.sh
+# gasPrice is in wei (per OpenOcean API v4). gasPriceGwei and gasFeeEth prevent unit confusion downstream.
 cat <<EOF
 {
   "from": "$FROM",
@@ -200,7 +218,10 @@ cat <<EOF
   "value": "$VALUE",
   "data": "$DATA",
   "gas": "$GAS",
-  "gasPrice": "$GAS_PRICE",
+  "gasPrice": "$SWAP_GAS_PRICE",
+  "gasPriceGwei": "$GAS_PRICE_GWEI",
+  "gasFeeWei": "$GAS_FEE_WEI",
+  "gasFeeEth": "$GAS_FEE_ETH",
   "chainId": "$CHAIN_ID",
   "tokenIn": "$TOKEN_IN",
   "tokenOut": "$TOKEN_OUT",

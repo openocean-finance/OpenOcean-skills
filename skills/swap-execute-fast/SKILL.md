@@ -75,7 +75,7 @@ If token not found, use OpenOcean Token API fallback.
 GET https://open-api.openocean.finance/v4/:chain/gasPrice
 ```
 
-Use `standard` gas price.
+Use **standard** gas price. Response: Ethereum uses `data.standard.legacyGasPrice` or `data.base` (wei); other EVM chains may use `data.standard` as a number (wei). All values are **in wei**.
 
 ### Step 3: Convert Amount to Wei
 
@@ -165,6 +165,14 @@ cast send --rpc-url $ETH_RPC_URL \
 **⚠️ No confirmation was shown — transaction was executed immediately.**
 ```
 
+**Gas fee calculation (must be correct to avoid display bugs):**
+- `gasPrice` from the API/script is **in wei**. Do not treat it as Gwei.
+- **Gas price in Gwei** = `gasPrice / 10^9`
+- **Total gas fee (ETH)** = `(gas × gasPrice) / 10^18`
+- **Total cost in USD** = `totalCostEth × nativeTokenUsdPrice`
+
+The script outputs `gasPrice` (wei), `gasPriceGwei`, `gasFeeWei`, and `gasFeeEth`; use these when displaying to avoid unit confusion.
+
 **If failed:**
 ```
 ## ❌ Swap Execution Failed (Fast Path)
@@ -186,6 +194,10 @@ For reliable automation, this skill uses shell scripts:
 ### `fast-swap.sh` — token resolution and route building
 
 Location: `skills/swap-execute-fast/scripts/fast-swap.sh`. Run from workspace root.
+
+- Calls `GET /v4/:chain/gasPrice` for initial quote, then `GET /v4/:chain/swap` with `amountDecimals` and `gasPriceDecimals` (wei) per [OpenOcean API v4](https://apis.openocean.finance/developer/apis/swap-api/api-v4).
+- **Uses `data.gasPrice` from the swap response** for the transaction (not the initial gasPrice call) so the built tx matches the quote.
+- Outputs `gasPrice` (wei), `gasPriceGwei`, `gasFeeWei`, `gasFeeEth` to prevent unit confusion when displaying gas fee.
 
 ```bash
 # Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps]

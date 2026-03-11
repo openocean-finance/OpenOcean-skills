@@ -35,6 +35,8 @@ OpenOcean supports 40+ chains including both EVM and non-EVM networks (Solana, S
 
 **Chain slug examples:** `1` or `ethereum`, `42161` or `arbitrum`, `137` or `polygon`, `8453` or `base`, `56` or `bsc`, `10` or `optimism`. Full list: [Supported Chains](https://apis.openocean.finance/developer/apis/supported-chains).
 
+**Deprecated parameters (do not use):** OpenOcean is deprecating `amount` and `gasPrice`. Use **`amountDecimals`** (token amount in base units as integer string) and **`gasPriceDecimals`** (gas price in wei as integer string) for all requests.
+
 ---
 
 ## Endpoints
@@ -118,6 +120,18 @@ GET https://open-api.openocean.finance/v4/1/quote?inTokenAddress=0xEeeeeEeeeEeEe
 - `data.price_impact` — Price impact percentage
 - `data.exchange` — OpenOcean router contract address
 
+**Important (price_impact):** The `price_impact` field indicates estimated price deviation relative to market. OpenOcean does not enforce execution blocks based on price impact; it is the **integrator's responsibility** to evaluate this value and implement checks (e.g. abort if above a threshold) before submitting transactions. See [API v4](https://apis.openocean.finance/developer/apis/swap-api/api-v4).
+
+---
+
+### GET `/:chain/reverseQuote` (Optional)
+
+Reverse quote: user wants to **receive** a fixed amount of the "in" token; the API returns how much of the "out" token is needed to sell.
+
+- In the request, **inToken** = token the user wants to receive, **outToken** = token the user will pay; **amount** = target amount of inToken to receive (with decimals).
+- Same query parameters as `/quote` (chain, inTokenAddress, outTokenAddress, amountDecimals, gasPriceDecimals, slippage, etc.).
+- Response includes `reverseAmount` (required outToken amount). See [API v4 ReverseQuote](https://apis.openocean.finance/developer/apis/swap-api/api-v4).
+
 ---
 
 ### GET `/:chain/swap`
@@ -139,8 +153,8 @@ Get swap quote with transaction calldata.
 | `referrerFee` | number | No | Referrer fee percentage (0.01 to 5) |
 | `enabledDexIds` | string | No | Comma-separated DEX index numbers to enable |
 | `disabledDexIds` | string | No | Comma-separated DEX index numbers to disable |
-| `sender` | string | No | Caller address (if different from account) |
-| `minOutput` | number | No | Minimum output amount with decimals |
+| `sender` | string | No | Caller address (if different from account); when set, sender = caller and account = receiver |
+| `minOutput` | string | No | Minimum output amount in base units (integer string, e.g. 9.9 USDC with 6 decimals = `9900000`). **Supported chains:** Base, BNB, ETH only |
 
 *Note: If `account` is not provided, the response returns quote data only and does not include calldata.
 
@@ -178,8 +192,12 @@ GET https://open-api.openocean.finance/v4/1/swap?inTokenAddress=0xEeeeeEeeeEeEee
 - `data.to` — Router contract address (send transaction to this address)
 - `data.value` — Transaction value in wei (non-zero for native token input)
 - `data.from` — Sender address
+- `data.gasPrice` — Gas price in **wei** (use this value when sending the transaction so it matches the quote)
+- `data.estimatedGas` — Estimated gas limit (reference only; OpenOcean recommends recalculating or using e.g. `eth_estimateGas * 1.25`–2.5 for safety)
 - `data.minOutAmount` — Minimum output amount after slippage
 - `data.chainId` — Chain ID for transaction
+
+**price_impact:** Returned in the response; same integrator responsibility as for `/quote` (evaluate and enforce thresholds before submitting).
 
 ---
 
@@ -273,7 +291,9 @@ Get current gas price for a chain.
 GET https://open-api.openocean.finance/v4/1/gasPrice
 ```
 
-**Response Schema**
+**Response Schema (Ethereum)**
+
+`data` contains gas values **in wei** (integer). Use `data.standard.legacyGasPrice` or `data.base` for legacy transactions.
 
 ```json
 {
@@ -294,14 +314,29 @@ GET https://open-api.openocean.finance/v4/1/gasPrice
     "base": 0.605865956,
     "standard": {
       "legacyGasPrice": 0.605865956,
-      "maxPriorityFeePerGas": 0.5,
-      "maxFeePerGas": 1.366388318,
-      "waitTimeEstimate": 0.000045
+      ...
     },
     ...
   }
 }
 ```
+
+**Response (other EVM chains)**
+
+Some chains return a flat structure; values are **in wei**:
+
+```json
+{
+  "code": 200,
+  "data": {
+    "standard": 1000000000,
+    "fast": 1000000000,
+    "instant": 1000000000
+  }
+}
+```
+
+**Important:** Always use the **wei** values from `data` (not `without_decimals`) when passing `gasPriceDecimals` to `/quote` or `/swap`. For Ethereum use `.data.standard.legacyGasPrice` or `.data.base`; for other EVM use `.data.standard` if `.standard.legacyGasPrice` is absent.
 
 ---
 
@@ -368,9 +403,14 @@ minOutAmount = 1000000 * (1 - 1/100) = 990000
 
 ## Gas Price Units
 
-Gas price should be provided in wei (`1 Gwei = 1,000,000,000 wei`).
+Gas price must be provided **in wei** for `gasPriceDecimals` (`1 Gwei = 1,000,000,000 wei`).
 
 Example: 10 Gwei = `10000000000`
+
+**Critical for display:** If you show gas price in Gwei or compute gas fee in ETH, use:
+- **Gas price in Gwei** = `gasPriceWei / 10^9` (do not use the raw wei value as Gwei).
+- **Gas fee in wei** = `gasLimit × gasPriceWei`
+- **Gas fee in ETH** = `gasFeeWei / 10^18`
 
 ---
 
@@ -381,3 +421,5 @@ If this reference is outdated or endpoints return unexpected errors, consult the
 **Official API documentation:** https://apis.openocean.finance/developer/apis/swap-api/api-v4
 
 The official docs are the single source of truth for endpoint specs, error codes, supported chains, and parameter definitions.
+
+**Other API v4 endpoints** (not used by the current skills; see official docs for params and responses): `GET /:chain/getTransaction`, `GET /:chain/decodeInputData` (and POST variant).

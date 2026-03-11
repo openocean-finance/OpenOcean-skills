@@ -71,7 +71,7 @@ Before getting a quote, fetch current gas price:
 GET https://open-api.openocean.finance/v4/:chain/gasPrice
 ```
 
-Use the `standard` gas price from the response. Convert to wei if needed.
+Use the `standard` gas price from the response. **Values in `data` are already in wei** (use `data.standard.legacyGasPrice` or `data.standard` on non-Ethereum chains); pass them directly as `gasPriceDecimals` to quote/swap.
 
 ### Step 3: Convert Amount to Wei
 
