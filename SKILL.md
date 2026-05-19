@@ -41,6 +41,14 @@ This skill package is the **entry point**. Detailed workflows live in the follow
 
 All paths above are relative to the **workspace root** (the directory that contains this `SKILL.md`).
 
+Path resolution rule (strict, to avoid noisy "file not found" errors):
+1. **Always run glob discovery first**:
+   - `**/token-registry.md`
+   - `**/api-reference.md`
+2. If a unique match is found, read that matched path directly.
+3. Do not attempt to read hardcoded `references/...` paths before glob.
+4. Only report an error if no match is found (or multiple ambiguous matches are found).
+
 ## Prerequisites
 
 - **Quote / Build**: Only need GET request capability (e.g. `mcp_web_fetch`).
