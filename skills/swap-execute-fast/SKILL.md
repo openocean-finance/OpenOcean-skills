@@ -58,12 +58,23 @@ Extract these fields:
 - **sender** — sender wallet address
 - **walletMethod** — optional: `ledger`, `trezor`, `keystore {name}`
 - **slippage** — optional slippage in basis points (default: 100 = 1%)
+- **enabledDexIds / disabledDexIds** 鈥?optional comma-separated DEX index list for route control (set only one). User input can be natural language (for example: "enable dex ids 1,2,3"), then map to API query parameters `enabledDexIds` or `disabledDexIds`.
 
 ## Workflow
 
+### Step 0: Normalize Chain Input
+
+Before any API call, normalize user chain input to OpenOcean-supported `Chain Code` (or keep numeric chain ID).
+
+Examples:
+- `ethereum` -> `eth`
+- `binance smart chain` / `bnb` -> `bsc`
+- `polygon` -> `polygon`
+- `arbitrum` -> `arbitrum`
+
 ### Step 1: Resolve Token Addresses
 
-Read `references/token-registry.md` from the project root.
+Resolve token registry with glob first (do not read fixed path first): `**/token-registry.md`. Read the unique matched path directly.
 
 Look up `tokenIn` and `tokenOut` for the chain. Use native token address for native tokens.
 
@@ -98,6 +109,17 @@ slippage_api = slippage_bps / 100
 ```
 
 For example, `slippage 100` means `1`, and `slippage 50` means `0.5`.
+
+Optional DEX route controls:
+- `enabledDexIds=1,2,3` (only allow selected DEX indexes)
+- `disabledDexIds=4,5` (exclude selected DEX indexes)
+
+Use only one of `enabledDexIds` or `disabledDexIds`.
+
+To get chain-supported DEX indexes, call:
+```
+GET https://open-api.openocean.finance/v4/:chain/dexList
+```
 
 ### Step 5: Execute Immediately with `cast`
 
@@ -200,7 +222,7 @@ Location: `skills/swap-execute-fast/scripts/fast-swap.sh`. Run from workspace ro
 - Outputs `gasPrice` (wei), `gasPriceGwei`, `gasFeeWei`, `gasFeeEth` to prevent unit confusion when displaying gas fee.
 
 ```bash
-# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps]
+# Usage: ./fast-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [--enabled-dex-ids <csv>] [--disabled-dex-ids <csv>]
 # Slippage in basis points (100 = 1%). API expects percentage; script converts automatically.
 # All progress goes to stderr; only JSON is printed to stdout for piping.
 ```
@@ -210,7 +232,7 @@ Location: `skills/swap-execute-fast/scripts/fast-swap.sh`. Run from workspace ro
 Location: `skills/swap-execute-fast/scripts/execute-swap.sh`. Calls `fast-swap.sh` then broadcasts via `cast send`.
 
 ```bash
-# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName]
+# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName] [--enabled-dex-ids <csv>] [--disabled-dex-ids <csv>]
 # Wallet methods: env (default), ledger, trezor, keystore
 ```
 

@@ -24,7 +24,7 @@ From `references/token-registry.md` (project root):
 
 ### Step 3: Get Gas Price
 ```
-GET https://open-api.openocean.finance/v4/ethereum/gasPrice
+GET https://open-api.openocean.finance/v4/eth/gasPrice
 ```
 
 Example response:
@@ -52,7 +52,7 @@ Use `standard.legacyGasPrice`: `605865956` wei
 
 ### Step 5: Call Quote API
 ```
-GET https://open-api.openocean.finance/v4/ethereum/quote?inTokenAddress=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE&outTokenAddress=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&amountDecimals=1000000000000000000&gasPriceDecimals=605865956
+GET https://open-api.openocean.finance/v4/eth/quote?inTokenAddress=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE&outTokenAddress=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&amountDecimals=1000000000000000000&gasPriceDecimals=605865956
 ```
 
 ### Step 6: Format Response
@@ -125,7 +125,7 @@ rate = 2345.67 / 1 = 2345.67 USDC per ETH
 | Savings | -0.18% |
 
 ### Route
-UniswapV3: 1 ETH
+UniswapV3: 2345.67 USDC
 
 ### Transaction Details
 - Router: `0x6352a56caadC4F1E25CD6c75970Fa768A3304e64`

@@ -19,10 +19,14 @@ Build a complete swap transaction with calldata using the OpenOcean aggregator. 
 
 ## Read Before Execution (Agent Checklist)
 
-1. **Paths**: Reference files are located at the workspace root: `references/token-registry.md` and `references/api-reference.md`.
+1. **Paths**: Resolve reference files with glob first (do not read fixed paths first).
+   - Run: `**/token-registry.md` and `**/api-reference.md`.
+   - Use the unique matched path and continue.
+   - Report error only when no unique match exists.
 2. **API**: Use **mcp_web_fetch** to call the `gasPrice` and `swap` endpoints. The `swap` request must include `account={sender}` in order to receive calldata.
 3. **Slippage**: A user may say `slippage 100` to mean 1% (100 bps). The API expects a **percentage** value, where `1 = 1%`. Convert with `slippage_api = slippage_bps / 100`.
 4. **Amount**: `amountDecimals` must be an integer string with no scientific notation.
+5. **Chain Normalization**: Normalize user chain names to OpenOcean-supported `Chain Code` before calling APIs (for example `ethereum` -> `eth`), or keep numeric chain ID as-is.
 
 ## Input Parsing
 

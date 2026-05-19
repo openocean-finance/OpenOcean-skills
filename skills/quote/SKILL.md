@@ -19,10 +19,13 @@ Fetch a swap quote from the OpenOcean aggregator. Given a token pair and amount,
 
 ## Read Before Execution (Agent Checklist)
 
-1. **Paths**: All referenced files in this project are relative to the **workspace root**. Read `references/token-registry.md` and `references/api-reference.md` directly.
+1. **Paths**: All referenced files in this project are relative to the **workspace root**.
+   - Always run glob first (do not read fixed paths first): `**/token-registry.md` and `**/api-reference.md`.
+   - Read the unique matched path directly.
+   - Only fail when no unique match can be found.
 2. **API Requests**: Use **mcp_web_fetch** (or an equivalent GET request tool) to call OpenOcean. Never fabricate response data.
 3. **Amount**: `amountDecimals` must be an **integer string** with no decimal point and no scientific notation.
-4. **Chain**: The `chain` field accepts either a chain name or chain ID, such as `ethereum` or `1`, and `arbitrum` or `42161`.
+4. **Chain**: The `chain` field accepts either a chain code or chain ID. Always normalize user input to OpenOcean-supported `Chain Code` (or keep numeric chain ID). Example: `ethereum` -> `eth`.
 
 ## Input Parsing
 
@@ -136,7 +139,7 @@ Present the results in this format:
 | Savings | {save}% |
 
 ### Route
-{For each dex in data.dexes, show: dexCode: {swapAmount} {tokenIn}}
+{For each dex in data.dexes, show: dexCode: {swapAmount} {tokenOut}}
 ```
 
 **Calculating the output amount:**

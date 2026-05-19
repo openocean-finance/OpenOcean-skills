@@ -1,7 +1,7 @@
 #!/bin/bash
 # execute-swap.sh
 # Builds and executes a swap in one step
-# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> <slippageBps> [walletMethod]
+# Usage: ./execute-swap.sh <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName] [--enabled-dex-ids <csv>] [--disabled-dex-ids <csv>]
 
 set -e  # Exit on error
 
@@ -9,13 +9,9 @@ set -e  # Exit on error
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAST_SWAP_SCRIPT="$SCRIPT_DIR/fast-swap.sh"
 
-# Default values
-WALLET_METHOD=${7:-"env"}  # env, ledger, trezor, keystore
-KEYSTORE_NAME=${8:-""}
-
 # Validate arguments
 if [ $# -lt 5 ]; then
-    echo "Usage: $0 <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName]"
+    echo "Usage: $0 <chain> <tokenIn> <tokenOut> <amount> <sender> [slippageBps] [walletMethod] [keystoreName] [--enabled-dex-ids <csv>] [--disabled-dex-ids <csv>]"
     echo ""
     echo "Examples:"
     echo "  $0 ethereum ETH USDC 1 0x742d35Cc6634C0532925a3b844Bc9e90F1b6fB28 100"
@@ -36,6 +32,44 @@ TOKEN_OUT="$3"
 AMOUNT="$4"
 SENDER="$5"
 SLIPPAGE=${6:-100}
+WALLET_METHOD=${7:-"env"}  # env, ledger, trezor, keystore
+KEYSTORE_NAME=${8:-""}
+ENABLED_DEX_IDS=""
+DISABLED_DEX_IDS=""
+
+# Parse optional flags after legacy positional args.
+if [ $# -ge 9 ]; then
+    shift 8
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --enabled-dex-ids)
+                if [ -z "${2:-}" ]; then
+                    echo "Missing value for --enabled-dex-ids"
+                    exit 1
+                fi
+                ENABLED_DEX_IDS="$2"
+                shift 2
+                ;;
+            --disabled-dex-ids)
+                if [ -z "${2:-}" ]; then
+                    echo "Missing value for --disabled-dex-ids"
+                    exit 1
+                fi
+                DISABLED_DEX_IDS="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown argument: $1"
+                exit 1
+                ;;
+        esac
+    done
+fi
+
+if [ -n "$ENABLED_DEX_IDS" ] && [ -n "$DISABLED_DEX_IDS" ]; then
+    echo "Specify only one of --enabled-dex-ids or --disabled-dex-ids"
+    exit 1
+fi
 
 echo "OpenOcean Fast Swap Execution"
 echo "========================================"
@@ -51,6 +85,8 @@ echo "  Wallet:    $WALLET_METHOD"
 if [ "$WALLET_METHOD" = "keystore" ] && [ -n "$KEYSTORE_NAME" ]; then
     echo "  Keystore:  $KEYSTORE_NAME"
 fi
+if [ -n "$ENABLED_DEX_IDS" ]; then echo "  enabledDexIds: $ENABLED_DEX_IDS"; fi
+if [ -n "$DISABLED_DEX_IDS" ]; then echo "  disabledDexIds: $DISABLED_DEX_IDS"; fi
 echo ""
 
 # Check prerequisites
@@ -80,10 +116,20 @@ echo "Prerequisites satisfied"
 # Step 1: Build swap transaction
 echo ""
 echo "Building swap transaction..."
-TX_JSON=$("$FAST_SWAP_SCRIPT" "$CHAIN" "$TOKEN_IN" "$TOKEN_OUT" "$AMOUNT" "$SENDER" "$SLIPPAGE")
+FAST_SWAP_ARGS=("$CHAIN" "$TOKEN_IN" "$TOKEN_OUT" "$AMOUNT" "$SENDER" "$SLIPPAGE")
+if [ -n "$ENABLED_DEX_IDS" ]; then
+    FAST_SWAP_ARGS+=("--enabled-dex-ids" "$ENABLED_DEX_IDS")
+fi
+if [ -n "$DISABLED_DEX_IDS" ]; then
+    FAST_SWAP_ARGS+=("--disabled-dex-ids" "$DISABLED_DEX_IDS")
+fi
 
-if [ $? -ne 0 ] || [ -z "$TX_JSON" ]; then
+if ! TX_JSON=$("$FAST_SWAP_SCRIPT" "${FAST_SWAP_ARGS[@]}"); then
     echo "Failed to build swap transaction."
+    exit 1
+fi
+if [ -z "$TX_JSON" ]; then
+    echo "Failed to build swap transaction: empty response."
     exit 1
 fi
 
@@ -119,7 +165,7 @@ echo "   Chain ID: $CHAIN_ID"
 echo ""
 echo "Executing transaction..."
 
-# Build cast command based on wallet method
+# Build wallet-specific auth args first, then reuse for estimate + send.
 case "$WALLET_METHOD" in
     env)
         if [ -z "$ETH_FROM" ]; then
@@ -127,34 +173,15 @@ case "$WALLET_METHOD" in
             echo "   export ETH_FROM=0xYourAddress"
             exit 1
         fi
-        
-        CAST_CMD="cast send --rpc-url $ETH_RPC_URL \
-            --from $ETH_FROM \
-            --value $VALUE \
-            --gas $GAS \
-            --gas-price $GAS_PRICE \
-            --chain $CHAIN_ID \
-            $TO $DATA"
+        AUTH_ARGS=(--from "$ETH_FROM")
         ;;
     
     ledger)
-        CAST_CMD="cast send --rpc-url $ETH_RPC_URL \
-            --ledger \
-            --value $VALUE \
-            --gas $GAS \
-            --gas-price $GAS_PRICE \
-            --chain $CHAIN_ID \
-            $TO $DATA"
+        AUTH_ARGS=(--ledger)
         ;;
     
     trezor)
-        CAST_CMD="cast send --rpc-url $ETH_RPC_URL \
-            --trezor \
-            --value $VALUE \
-            --gas $GAS \
-            --gas-price $GAS_PRICE \
-            --chain $CHAIN_ID \
-            $TO $DATA"
+        AUTH_ARGS=(--trezor)
         ;;
     
     keystore)
@@ -178,14 +205,7 @@ case "$WALLET_METHOD" in
             echo "     ~/.ethereum/keystore/$KEYSTORE_NAME"
             exit 1
         fi
-        
-        CAST_CMD="cast send --rpc-url $ETH_RPC_URL \
-            --keystore $KEYSTORE_FILE \
-            --value $VALUE \
-            --gas $GAS \
-            --gas-price $GAS_PRICE \
-            --chain $CHAIN_ID \
-            $TO $DATA"
+        AUTH_ARGS=(--keystore "$KEYSTORE_FILE")
         ;;
     
     *)
@@ -195,13 +215,29 @@ case "$WALLET_METHOD" in
         ;;
 esac
 
-echo "   Command: ${CAST_CMD:0:80}..."
+# Re-estimate gas from RPC and apply 25% safety buffer (per OpenOcean v4 integration guidance).
+echo "Re-estimating gas with RPC..."
+ESTIMATE_ARGS=(estimate --rpc-url "$ETH_RPC_URL" "${AUTH_ARGS[@]}" --value "$VALUE" "$TO" "$DATA")
+EST_GAS_RAW=$(cast "${ESTIMATE_ARGS[@]}" 2>/dev/null || true)
+EST_GAS=$(echo "$EST_GAS_RAW" | tr -d '[:space:]')
+if [[ "$EST_GAS" =~ ^[0-9]+$ ]]; then
+    GAS=$(( (EST_GAS * 125 + 99) / 100 ))
+    echo "   Estimated gas: $EST_GAS, using buffered gas: $GAS"
+else
+    echo "   Gas estimation failed, fallback to swap response gas: $GAS"
+fi
+
+CAST_ARGS=(send --rpc-url "$ETH_RPC_URL" "${AUTH_ARGS[@]}" --value "$VALUE" --gas "$GAS" --gas-price "$GAS_PRICE" --chain "$CHAIN_ID" "$TO" "$DATA")
+
+echo "   Command: cast send --rpc-url <redacted> ... --gas $GAS --gas-price $GAS_PRICE --chain $CHAIN_ID ..."
 echo ""
 
 # Execute the command
 echo "Broadcasting transaction..."
-TX_RESULT=$(eval "$CAST_CMD" 2>&1)
+set +e
+TX_RESULT=$(cast "${CAST_ARGS[@]}" 2>&1)
 CAST_EXIT_CODE=$?
+set -e
 
 if [ $CAST_EXIT_CODE -eq 0 ]; then
     # Extract transaction hash from cast output
